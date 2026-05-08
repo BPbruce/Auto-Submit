@@ -1,46 +1,77 @@
-# 渠道维护工具
+# Source Tutor (MVP)
 
-一个用于管理多平台（电鸭社区、V2EX、登链）职位发布的自动化工具。
+一个用于**源码学习闭环**的命令行工具：读取本地 Python 源码，按 class / function 切分，并基于真实源码生成练习题，帮助验证是否真正理解代码。
 
-## 功能特点
+## 功能
 
-- 支持多平台登录状态保持
-- 自动填写职位信息
-- 现代化的界面设计
-- 多线程操作避免界面卡顿
+- 支持输入单文件或目录路径。
+- 使用 AST 按 `class` / `def` 切分并记录起止行号。
+- 规则生成题目（不依赖外部 LLM API）。
+- 交互答题：支持 `hint` / `source` / `why(解释)` / `next` / `quit`。
+- 学习记录保存到 `.source_tutor/session.json`。
+- 复习模式优先展示错题与标记不懂题目。
+- 预留 `LLMQuestionGenerator` 接口，后续可接 OpenAI / Claude / 本地模型。
 
-## 环境要求
+## 项目结构
 
-- Python 3.7+
-- Chrome 浏览器
-- 相关平台的账号权限
-
-## 安装依赖
-
-```bash
-pip install -r requirements.txt
+```text
+source_tutor.py
+source_tutor/
+  ├─ models.py
+  ├─ loader.py
+  ├─ chunker.py
+  ├─ question_generator.py
+  ├─ session.py
+  └─ cli.py
+tests/
+  └─ test_basic.py
 ```
 
-## 使用说明
+## 快速开始
 
-1. 首次使用需要登录各平台
-2. 填写职位标题和描述
-3. 选择目标平台进行发布
-4. 程序会在本地保存登录状态，有效期20天
+```bash
+python source_tutor.py --path ./transformers/src/transformers/models/qwen3/modeling_qwen3.py
+```
 
-## 注意事项
+目录模式：
 
-- 确保Chrome浏览器已安装
-- 首次使用需要登录各平台
-- 会在程序目录下生成session文件夹用于保存登录状态
+```bash
+python source_tutor.py --path ./transformers/src/transformers/models/qwen3
+```
 
-## 开发说明
+复习模式：
 
-本项目使用：
-- PyQt5 用于GUI界面
-- Selenium 用于网页自动化
-- webdriver_manager 用于管理Chrome驱动
+```bash
+python source_tutor.py review
+```
 
-## License
+## 交互命令
 
-MIT 
+- `A/B/C/D`: 作答
+- `hint`: 仅提示，不直接给答案
+- `source`: 显示对应源码证据
+- `why` 或 `解释`: 查看详细解释
+- `next`: 跳到下一题
+- `quit`: 退出并保存记录
+
+## 防幻觉规则（内置）
+
+- 所有答案解释都绑定 `evidence`（文件路径 + 行号 + 代码片段）。
+- 无法直接从片段判断时，使用：`无法从当前源码片段可靠判断`。
+- 解释中明确注明源码依据行号。
+- 需要推断时，明确标注：`这是基于源码的推断`。
+
+## 运行测试
+
+```bash
+python -m pytest -q
+```
+
+> 若环境未安装 pytest，可先执行 `pip install pytest`。
+
+## 后续扩展建议
+
+- 增加跨文件调用链分析（调用图）。
+- 增加概念标签抽取（attention / KV cache / RoPE 等）。
+- 引入 spaced repetition 排序策略。
+- 实现 Web UI（复用当前后端模块）。
