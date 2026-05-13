@@ -3,6 +3,7 @@ import os
 import json
 import datetime
 import threading
+from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QTextEdit, QLabel, QMessageBox, QComboBox
@@ -42,6 +43,7 @@ class JobPostManager:
     }
     ELEDUCK_POST_URL = "https://eleduck.com/jobs/new?c=jd"
     LOGIN_STATUS_FILE = os.path.join(os.getcwd(), ".login_status.json")
+    CHROME_DRIVER_PATH = ChromeDriverManager().install()
     LOGIN_EXPIRE_DAYS = 20
     login_flags = {site: False for site in USER_DATA_DIRS}
     drivers = {}
@@ -50,8 +52,10 @@ class JobPostManager:
         self.load_login_status()
 
     def load_login_status(self):
+        if not os.path.exists(self.LOGIN_STATUS_FILE):
+            return
         try:
-            with open(self.LOGIN_STATUS_FILE, 'r') as f:
+            with open(self.LOGIN_STATUS_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             now = datetime.datetime.now().timestamp()
             for site, ts in data.items():
@@ -64,13 +68,13 @@ class JobPostManager:
         data = {}
         if os.path.exists(self.LOGIN_STATUS_FILE):
             try:
-                with open(self.LOGIN_STATUS_FILE, 'r') as f:
+                with open(self.LOGIN_STATUS_FILE, 'r', encoding='utf-8') as f:
                     data = json.load(f)
             except Exception as e:
                 print(f"读取登录状态文件失败: {e}")
         data[site] = datetime.datetime.now().timestamp()
-        with open(self.LOGIN_STATUS_FILE, 'w') as f:
-            json.dump(data, f)
+        with open(self.LOGIN_STATUS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
 
     def get_driver(self, site_name, headless=False):
         if site_name in self.drivers:
@@ -85,6 +89,7 @@ class JobPostManager:
                     print(f"关闭驱动程序失败: {e}")
                 del self.drivers[site_name]
 
+        Path(self.USER_DATA_DIRS[site_name]).mkdir(parents=True, exist_ok=True)
         options = Options()
         options.add_argument(f"user-data-dir={self.USER_DATA_DIRS[site_name]}")
         options.add_argument("--new-window")
@@ -94,7 +99,7 @@ class JobPostManager:
         if headless:
             options.add_argument("--headless")
             options.add_argument("--disable-gpu")
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver = webdriver.Chrome(service=Service(self.CHROME_DRIVER_PATH), options=options)
         self.drivers[site_name] = driver
         return driver
 
@@ -191,7 +196,7 @@ class JobPostUI(QWidget):
         login_bar.addWidget(self.login_select)
 
         login_btn = QPushButton("登录")
-        login_btn.clicked.connect(lambda: threading.Thread(target=self.manager.open_login, args=(self.login_select.currentText(),)).start())
+        login_btn.clicked.connect(lambda: threading.Thread(target=self.manager.open_login, args=(self.login_select.currentText(),), daemon=True).start())
         login_bar.addWidget(login_btn)
         lay.addLayout(login_bar)
 
@@ -296,19 +301,19 @@ class JobPostUI(QWidget):
         if not self.manager.login_flags["电鸭社区"]:
             QMessageBox.warning(self, "未登录", "请先登录电鸭社区")
             return
-        threading.Thread(target=self.manager.auto_post_job, args=(self.title_in.text(), self.body_in.toPlainText())).start()
+        threading.Thread(target=self.manager.auto_post_job, args=(self.title_in.text(), self.body_in.toPlainText()), daemon=True).start()
 
     def handle_v2ex(self):
         if not self.manager.login_flags["V2EX"]:
             QMessageBox.warning(self, "未登录", "请先登录 V2EX")
             return
-        threading.Thread(target=self.manager.open_v2ex, args=(self.v2ex_select.currentText(), self.title_in.text(), self.body_in.toPlainText())).start()
+        threading.Thread(target=self.manager.open_v2ex, args=(self.v2ex_select.currentText(), self.title_in.text(), self.body_in.toPlainText()), daemon=True).start()
 
     def handle_denglian(self):
         if not self.manager.login_flags["登链"]:
             QMessageBox.warning(self, "未登录", "请先登录登链")
             return
-        threading.Thread(target=self.manager.open_denglian, args=(self.dl_select.currentText(),)).start()
+        threading.Thread(target=self.manager.open_denglian, args=(self.dl_select.currentText(),), daemon=True).start()
 
 
 if __name__ == "__main__":
