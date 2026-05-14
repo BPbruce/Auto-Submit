@@ -3,6 +3,7 @@ import os
 import json
 import datetime
 import threading
+from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QTextEdit, QLabel, QMessageBox, QComboBox
@@ -43,6 +44,7 @@ class JobPostManager:
     ELEDUCK_POST_URL = "https://eleduck.com/jobs/new?c=jd"
     LOGIN_STATUS_FILE = os.path.join(os.getcwd(), ".login_status.json")
     LOGIN_EXPIRE_DAYS = 20
+    DRAFT_FILE = Path(os.getcwd()) / ".job_draft.json"
     login_flags = {site: False for site in USER_DATA_DIRS}
     drivers = {}
 
@@ -165,6 +167,21 @@ class JobPostManager:
         except Exception as e:
             print(f"登链操作失败: {e}")
 
+    def save_draft(self, title, body):
+        payload = {
+            "title": title,
+            "body": body,
+            "updated_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        }
+        with open(self.DRAFT_FILE, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    def load_draft(self):
+        if not self.DRAFT_FILE.exists():
+            return None
+        with open(self.DRAFT_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+
     def cleanup_drivers(self):
         for drv in list(self.drivers.values()):
             try:
@@ -206,6 +223,21 @@ class JobPostUI(QWidget):
         self.body_in = QTextEdit()
         self.body_in.setPlaceholderText("请输入职位描述")
         lay.addWidget(self.body_in)
+
+        draft_row = QHBoxLayout()
+        save_draft_btn = QPushButton("保存草稿")
+        save_draft_btn.clicked.connect(self.handle_save_draft)
+        draft_row.addWidget(save_draft_btn)
+
+        load_draft_btn = QPushButton("读取草稿")
+        load_draft_btn.clicked.connect(self.handle_load_draft)
+        draft_row.addWidget(load_draft_btn)
+
+        clear_btn = QPushButton("清空内容")
+        clear_btn.clicked.connect(self.handle_clear_fields)
+        draft_row.addWidget(clear_btn)
+        draft_row.addStretch()
+        lay.addLayout(draft_row)
 
         # 电鸭
         row1 = QHBoxLayout()
@@ -291,6 +323,38 @@ class JobPostUI(QWidget):
         pal.setColor(QPalette.Button, QColor(255, 103, 0))
         pal.setColor(QPalette.ButtonText, Qt.white)
         self.setPalette(pal)
+
+    def handle_save_draft(self):
+        title = self.title_in.text().strip()
+        body = self.body_in.toPlainText().strip()
+        if not title and not body:
+            QMessageBox.information(self, "提示", "标题和正文都为空，未保存。")
+            return
+        try:
+            self.manager.save_draft(title, body)
+            QMessageBox.information(self, "已保存", "草稿保存成功。")
+        except Exception as e:
+            QMessageBox.critical(self, "保存失败", f"保存草稿失败：{e}")
+
+    def handle_load_draft(self):
+        try:
+            draft = self.manager.load_draft()
+        except Exception as e:
+            QMessageBox.critical(self, "读取失败", f"读取草稿失败：{e}")
+            return
+
+        if not draft:
+            QMessageBox.information(self, "无草稿", "尚未找到已保存的草稿。")
+            return
+
+        self.title_in.setText(draft.get("title", ""))
+        self.body_in.setPlainText(draft.get("body", ""))
+        updated_at = draft.get("updated_at", "未知时间")
+        QMessageBox.information(self, "已读取", f"草稿读取成功（更新时间：{updated_at}）。")
+
+    def handle_clear_fields(self):
+        self.title_in.clear()
+        self.body_in.clear()
 
     def handle_eleduck(self):
         if not self.manager.login_flags["电鸭社区"]:
