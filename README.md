@@ -10,6 +10,7 @@
 - 交互答题：支持 `hint` / `source` / `why(解释)` / `next` / `quit`。
 - 学习记录保存到 `.source_tutor/session.json`。
 - 复习模式优先展示错题与标记不懂题目。
+- 学习统计命令汇总答题数、正确率、概念分布与最近一次答题。
 - 预留 `LLMQuestionGenerator` 接口，后续可接 OpenAI / Claude / 本地模型。
 
 ## 项目结构
@@ -43,6 +44,12 @@ python source_tutor.py --path ./transformers/src/transformers/models/qwen3
 
 ```bash
 python source_tutor.py review
+```
+
+查看学习统计：
+
+```bash
+python source_tutor.py stats
 ```
 
 ## 交互命令

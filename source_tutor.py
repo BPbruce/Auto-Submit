@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 
 from source_tutor.chunker import CodeChunker
-from source_tutor.cli import run_quiz, run_review
+from source_tutor.cli import run_quiz, run_review, run_stats
 from source_tutor.loader import load_python_files, read_text
 from source_tutor.question_generator import RuleBasedQuestionGenerator
 from source_tutor.session import SessionStore
@@ -27,6 +27,8 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command")
     review_parser = sub.add_parser("review", help="进入复习模式")
     review_parser.add_argument("--session", default=".source_tutor/session.json")
+    stats_parser = sub.add_parser("stats", help="查看学习统计")
+    stats_parser.add_argument("--session", default=".source_tutor/session.json")
 
     parser.add_argument("--path", help="源码文件/目录路径")
     parser.add_argument("--session", default=".source_tutor/session.json")
@@ -35,7 +37,11 @@ def main() -> None:
     store = SessionStore(args.session)
 
     if args.command == "review":
-        run_review(SessionStore(args.session))
+        run_review(store)
+        return
+
+    if args.command == "stats":
+        run_stats(store)
         return
 
     if not args.path:
