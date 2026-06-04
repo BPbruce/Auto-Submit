@@ -60,3 +60,29 @@ def run_review(store: SessionStore) -> None:
     print("复习优先队列（错题/标记不懂）：")
     for idx, item in enumerate(candidates, start=1):
         print(f"{idx}. [{item['concept']}] {item['question']} | 你的答案: {item['user_answer']}")
+
+
+def run_stats(store: SessionStore) -> None:
+    stats = store.stats()
+    if stats["total"] == 0:
+        print("暂无学习记录。先完成一次答题后再查看统计。")
+        return
+
+    print("学习统计：")
+    print(f"- 总答题数：{stats['total']}")
+    print(f"- 正确：{stats['correct']}｜错误：{stats['wrong']}｜标记不懂：{stats['marked_unknown']}")
+    print(f"- 正确率：{stats['accuracy']}%")
+
+    print("- 概念分布：")
+    for concept, count in stats["concepts"]:
+        print(f"  - {concept}: {count}")
+
+    print("- 文件分布：")
+    for file_path, count in stats["files"]:
+        print(f"  - {file_path}: {count}")
+
+    latest = stats["latest"]
+    if latest:
+        print("- 最近一次答题：")
+        print(f"  - [{latest.get('concept', '未分类')}] {latest.get('question', '')}")
+        print(f"  - 你的答案：{latest.get('user_answer', '')}")
